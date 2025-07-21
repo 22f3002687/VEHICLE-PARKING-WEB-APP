@@ -1,7 +1,10 @@
+import datetime
 from flask import Flask
+from flask_jwt_extended import JWTManager
 from models import *
 import os
 from dotenv import load_dotenv
+from controllers import auth_bp, admin_bp, user_bp
 
 
 def create_app():
@@ -10,6 +13,10 @@ def create_app():
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
     app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///parking.db"
     db.init_app(app)
+    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
+    jwt = JWTManager()
+    jwt.init_app(app)
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
 
     with app.app_context():
         db.create_all()
@@ -19,6 +26,9 @@ def create_app():
             admin.set_password('admin@#2468')
             db.session.add(admin)
             db.session.commit()
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(user_bp)
 
     return app
 

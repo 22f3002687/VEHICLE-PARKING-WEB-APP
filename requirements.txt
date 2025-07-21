@@ -3,3 +3,4 @@ SQLAlchemy
 flask-sqlalchemy
 pytz
 python-dotenv
+Flask-JWT-Extended
