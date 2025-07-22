@@ -5,18 +5,21 @@ from models import *
 import os
 from dotenv import load_dotenv
 from controllers import auth_bp, admin_bp, user_bp
+from flask_cors import CORS
+
+basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 def create_app():
     app = Flask(__name__)
     load_dotenv()
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///parking.db"
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'parking.db')
     db.init_app(app)
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
     jwt = JWTManager()
     jwt.init_app(app)
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=1)
+    CORS(app)
 
     with app.app_context():
         db.create_all()

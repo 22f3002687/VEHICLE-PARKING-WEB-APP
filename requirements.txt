@@ -4,3 +4,4 @@ flask-sqlalchemy
 pytz
 python-dotenv
 Flask-JWT-Extended
+flask_cors

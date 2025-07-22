@@ -26,17 +26,38 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+            'role': self.role
+        }
 
 # Parking Lot Model
 class ParkingLot(db.Model):
     __tablename__ = 'parking_lots'
     id = db.Column(db.Integer, primary_key=True)
-    prime_location_name = db.Column(db.String(150), nullable=False)
+    location_name = db.Column(db.String(150), nullable=False)
     price_per_hour = db.Column(db.Float, nullable=False)
     address = db.Column(db.String(250), nullable=False)
-    pin_code = db.Column(db.String(6), nullable=False)
-    number_of_spots = db.Column(db.Integer, nullable=False)
+    pincode = db.Column(db.String(6), nullable=False)
+    total_spots = db.Column(db.Integer, nullable=False)
     spots = db.relationship('ParkingSpot', backref='lot', lazy=True, cascade="all, delete-orphan")
+
+    def to_dict(self):
+        available_count = ParkingSpot.query.filter_by(lot_id=self.id, status='Available').count()
+
+        return {
+            'id': self.id,
+            'location_name': self.location_name,
+            'address': self.address,
+            'pincode': self.pincode,
+            'total_spots': self.total_spots,
+            'price_per_hour': self.price_per_hour,
+            'available_spots': available_count
+        }
 
 # Parking Spot Model
 class ParkingSpot(db.Model):
@@ -44,8 +65,16 @@ class ParkingSpot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     spot_number = db.Column(db.Integer, nullable=False)
     lot_id = db.Column(db.Integer, db.ForeignKey('parking_lots.id'), nullable=False)
-    status = db.Column(db.String(1), default='A', nullable=False)
+    status = db.Column(db.String(10), default='Available', nullable=False)
     reservations = db.relationship('Reservation', backref='spot',cascade="all, delete-orphan", lazy=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'spot_number': self.spot_number,
+            'lot_id': self.lot_id,
+            'status': self.status
+        }
 
 # Reservation Model
 class Reservation(db.Model):
@@ -58,3 +87,17 @@ class Reservation(db.Model):
     booking_timestamp = db.Column(db.DateTime, default=lambda: datetime.now(pytz.UTC).astimezone(IST), nullable=False)
     parking_cost = db.Column(db.Float, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'spot_id': self.spot_id,
+            'user_id': self.user_id,
+            'booking_timestamp': self.booking_timestamp.isoformat() if self.booking_timestamp else None,
+            'parking_timestamp': self.parking_timestamp.isoformat() if self.parking_timestamp else None,
+            'leaving_timestamp': self.leaving_timestamp.isoformat() if self.leaving_timestamp else None,
+            'parking_cost': self.parking_cost,
+            'is_active': self.is_active,
+            'spot': self.spot.to_dict() if self.spot else None,
+            'lot': self.spot.lot.to_dict() if self.spot and self.spot.lot else None
+        }

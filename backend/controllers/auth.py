@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token
 from models import User, db
@@ -40,7 +40,7 @@ def login():
 
     if user and user.check_password(password):
         additional_claims = {"role": user.role}
-        access_token = create_access_token(identity=user.id, additional_claims=additional_claims, expires_delta=datetime.timedelta(hours=1))
+        access_token = create_access_token(identity=str(user.id), additional_claims=additional_claims, expires_delta=timedelta(minutes=10))
         return jsonify(access_token=access_token, role=user.role, username=user.username)
 
     return jsonify({"msg": "Invalid credentials"}), 401
