@@ -2,7 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 import pytz
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.security import generate_password_hash, check_password_hash
-import datetime
+from datetime import datetime
 
 class Base(DeclarativeBase):
   pass
@@ -82,9 +82,9 @@ class Reservation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     spot_id = db.Column(db.Integer, db.ForeignKey('parking_spots.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    parking_timestamp = db.Column(db.DateTime, nullable=True)
-    leaving_timestamp = db.Column(db.DateTime, nullable=True)
-    booking_timestamp = db.Column(db.DateTime, default=lambda: datetime.now(pytz.UTC).astimezone(IST), nullable=False)
+    parking_timestamp = db.Column(db.DateTime(timezone=True), nullable=True)
+    leaving_timestamp = db.Column(db.DateTime(timezone=True), nullable=True)
+    booking_timestamp = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(pytz.UTC).astimezone(IST), nullable=False)
     parking_cost = db.Column(db.Float, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 

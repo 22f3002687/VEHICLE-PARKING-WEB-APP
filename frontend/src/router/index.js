@@ -6,6 +6,8 @@ import { auth } from '../services/api.js';
 import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import AdminDashboardView from '../views/AdminDashboardView.vue';
+import UserDashboardView from '../views/UserDashboardView.vue'; // IMPORTED
+
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -19,6 +21,12 @@ const router = createRouter({
             component: AdminDashboardView,
             meta: { requiresAuth: true, role: 'admin' }
         },
+        {
+            path: '/dashboard',
+            name: 'dashboard',
+            component: UserDashboardView,
+            meta: { requiresAuth: true, role: 'user' }
+        }
     ]
 });
 
@@ -39,7 +47,7 @@ router.beforeEach((to, from, next) => {
     } else {
         if (isAuthenticated && (to.name === 'login' || to.name === 'register')) {
             // If logged in, redirect from login/register to their dashboard
-            next(userRole === 'admin' ? { name: 'admin' } : { name: 'login' });
+            next(userRole === 'admin' ? { name: 'admin' } : { name: 'dashboard' });
         } else {
             next();
         }
