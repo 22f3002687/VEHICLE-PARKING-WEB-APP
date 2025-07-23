@@ -64,7 +64,7 @@
         <div v-else class="table-responsive">
             <table class="table table-striped table-hover align-middle">
                 <thead class="table-dark">
-                    <tr><th>Lot Name</th><th>Spot #</th><th>Booked On</th><th>Parked On</th><th>Left On</th><th>Cost</th></tr>
+                    <tr><th>Lot Name</th><th>Spot #</th><th>Booked On</th><th>Parked On</th><th>Left On</th><th>Duration</th><th>Cost</th></tr>
                 </thead>
                 <tbody>
                     <tr v-for="r in pastReservations" :key="r.id">
@@ -73,6 +73,7 @@
                         <td>{{ new Date(r.booking_timestamp).toLocaleString() }}</td> 
                         <td>{{ r.parking_timestamp ? new Date(r.parking_timestamp).toLocaleString() : 'N/A' }}</td>
                         <td>{{ r.leaving_timestamp ? new Date(r.leaving_timestamp).toLocaleString() : 'N/A' }}</td>
+                        <td>{{ formatDuration(r.parking_timestamp, r.leaving_timestamp) }}</td>
                         <td>₹{{ r.parking_cost != null ? r.parking_cost.toFixed(2) : '0.00' }}</td>
                     </tr>
                 </tbody>
@@ -99,6 +100,22 @@ const selectedLot = ref(null);
 
 const activeReservations = computed(() => reservations.value.filter(r => r.is_active));
 const pastReservations = computed(() => reservations.value.filter(r => !r.is_active));
+
+const formatDuration = (start, end) => {
+    if (!start || !end) {
+        return 'N/A';
+    }
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const diffMs = endDate - startDate;
+    if (diffMs < 0) return 'N/A';
+
+    const hours = Math.floor(diffMs / 3600000);
+    const minutes = Math.floor((diffMs % 3600000) / 60000);
+    
+    return `${hours}h ${minutes}m`;
+};
+
 
 const showMessage = (msg, type = 'error') => {
     message.value = msg;
@@ -150,7 +167,7 @@ const park = async (reservationId) => {
 const vacate = async (reservationId) => {
     try {
         const data = await apiRequest('/user/reservations/vacate', 'PUT', { reservation_id: reservationId });
-        showMessage(`${data.msg} Total cost: ₹${data.reservation.parking_cost.toFixed(2)}`, 'success');
+        showMessage(`${data.msg}`, 'success');
         fetchData();
     } catch (err) {
         showMessage(err.message, 'error');

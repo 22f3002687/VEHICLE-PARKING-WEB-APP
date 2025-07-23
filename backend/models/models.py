@@ -99,5 +99,6 @@ class Reservation(db.Model):
             'parking_cost': self.parking_cost,
             'is_active': self.is_active,
             'spot': self.spot.to_dict() if self.spot else None,
-            'lot': self.spot.lot.to_dict() if self.spot and self.spot.lot else None
+            'lot': self.spot.lot.to_dict() if self.spot and self.spot.lot else None, 
+            'user_name' : self.user.username if self.user else None
         }

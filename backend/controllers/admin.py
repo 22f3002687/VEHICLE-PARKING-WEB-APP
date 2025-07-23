@@ -158,3 +158,10 @@ def get_all_users():
     """Admin: Get a list of all registered users."""
     users = User.query.filter_by(role='user').all()
     return jsonify([user.to_dict() for user in users]), 200
+
+@admin_bp.route('/api/admin/reservations', methods=['GET'])
+@admin_required
+def get_all_reservations():
+    """Admin: Get a list of all reservations across all users."""
+    reservations = Reservation.query.order_by(Reservation.booking_timestamp.desc()).all()
+    return jsonify([r.to_dict() for r in reservations]), 200

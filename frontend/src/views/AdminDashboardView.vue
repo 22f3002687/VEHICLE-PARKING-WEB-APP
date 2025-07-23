@@ -20,6 +20,9 @@
         <li class="nav-item">
             <a class="nav-link" :class="{ active: currentTab === 'users' }" @click="fetchUsers">Users</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" :class="{ active: currentTab === 'reservations' }" @click="fetchReservations">Reservations</a>
+        </li>
     </ul>
 
     <!-- Lots View -->
@@ -63,6 +66,45 @@
             </table>
         </div></div>
     </div>
+    <!-- Reservations View -->
+    <div v-if="currentTab === 'reservations'">
+        <h3>All Parking Records</h3>
+        <div v-if="loading" class="text-center p-5"><div class="spinner-border"></div></div>
+        <div v-else-if="reservations.length === 0" class="text-center p-4 bg-light rounded"><p>No reservations found in the system.</p></div>
+        <div v-else class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>User</th>
+                        <th>Lot Name</th>
+                        <th>Spot #</th>
+                        <th>Status</th>
+                        <th>Booked On</th>
+                        <th>Parked On</th>
+                        <th>Left On</th>
+                        <th>Cost</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="r in reservations" :key="r.id">
+                        <td>{{ r.user_name || 'Unknown User' }}</td>
+                        <td>{{ r.lot?.location_name || 'Unknown Lot' }}</td>
+                        <td>{{ r.spot?.spot_number || 'N/A' }}</td>
+                        <td>
+                            <span v-if="!r.is_active && r.parking_timestamp" class="badge bg-secondary">Completed</span>
+                            <span v-else-if="!r.is_active && !r.parking_timestamp" class="badge bg-danger">Cancelled</span>
+                            <span v-else-if="r.is_active && r.parking_timestamp" class="badge bg-success">Parked</span>
+                            <span v-else-if="r.is_active && !r.parking_timestamp" class="badge bg-warning text-dark">Booked</span>
+                        </td>
+                        <td>{{ new Date(r.booking_timestamp).toLocaleString() }}</td>
+                        <td>{{ r.parking_timestamp ? new Date(r.parking_timestamp).toLocaleString() : 'N/A' }}</td>
+                        <td>{{ r.leaving_timestamp ? new Date(r.leaving_timestamp).toLocaleString() : 'N/A' }}</td>
+                        <td>₹{{ r.parking_cost != null ? r.parking_cost.toFixed(2) : '0.00' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <!-- Modals -->
     <LotModal v-if="showModal" :lot-data="selectedLot" @close="showModal = false" @save="handleSaveLot" />
@@ -78,6 +120,7 @@ import LotDetailsModal from '../components/LotDetailsModal.vue';
 
 const lots = ref([]);
 const users = ref([]);
+const reservations = ref([]);
 const loading = ref(false);
 const currentTab = ref('lots');
 const message = ref('');
@@ -111,6 +154,18 @@ const fetchUsers = async () => {
     loading.value = true;
     try {
         users.value = await apiRequest('/admin/users');
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        loading.value = false;
+    }
+};
+
+const fetchReservations = async () => {
+    currentTab.value = 'reservations';
+    loading.value = true;
+    try {
+        reservations.value = await apiRequest('/admin/reservations');
     } catch (err) {
         showMessage(err.message, 'error');
     } finally {
