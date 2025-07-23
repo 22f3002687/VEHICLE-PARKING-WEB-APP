@@ -4,7 +4,7 @@
 <template>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
         <div class="container-fluid">
-            <router-link class="navbar-brand" to="/"><i class="bi bi-p-circle-fill"></i> Parking Pro</router-link>
+            <router-link class="navbar-brand" to="/"><i class="bi bi-p-circle-fill"></i> Park Vehicle</router-link>
             <div class="d-flex">
                 <div v-if="!auth.token" class="d-flex">
                     <router-link to="/login" class="btn btn-outline-light me-2">Login</router-link>

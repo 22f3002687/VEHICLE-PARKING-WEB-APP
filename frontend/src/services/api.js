@@ -27,11 +27,13 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
         const response = await fetch(API_URL + endpoint, config);
         const responseData = await response.json();
 
-        /*if (response.status === 401) {
-            logout();
-            window.location.href = '/login';
-            throw new Error("Session expired. Please log in again.");
-        }*/
+        if (response.status === 401) {
+            if (window.location.pathname !== '/login'){
+                logout();
+                window.location.href = '/login';
+                throw new Error("Session expired. Please log in again.");
+            }    
+        }
         if (!response.ok) {
             throw new Error(responseData.msg || 'An API error occurred');
         }

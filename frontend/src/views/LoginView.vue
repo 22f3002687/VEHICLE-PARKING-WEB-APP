@@ -5,7 +5,7 @@
         <div class="row justify-content-center w-100">
             <div class="col-11 col-sm-10 col-md-8 col-lg-6 col-xl-5 col-xxl-4">
                 <div class="card shadow-lg border-0 p-4">
-                    <h2 class="text-center mb-4">Admin & User Login</h2>
+                    <h2 class="text-center mb-4">Login</h2>
                     <div v-if="error" class="alert alert-danger">{{ error }}</div>
                     <form @submit.prevent="handleLogin">
                         <div class="mb-3">

@@ -3,6 +3,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from sqlalchemy import func
 from models import *
+from flask_caching import Cache
 
 
 def admin_required(fn):
@@ -18,7 +19,7 @@ def admin_required(fn):
 
 admin_bp = Blueprint('admin',__name__)
 
-
+cache = Cache()
 
 @admin_bp.route('/api/admin/lots', methods=['POST'])
 @admin_required
@@ -52,10 +53,13 @@ def create_parking_lot():
         db.session.add(new_spot)
 
     db.session.commit()
+
+    cache.clear()
     return jsonify({"msg": "Parking lot created successfully", "lot": new_lot.to_dict()}), 201
 
 @admin_bp.route('/api/admin/lots', methods=['GET'])
 @admin_required
+@cache.cached()
 def get_all_lots():
     """Admin: Get a list of all parking lots."""
     lots = ParkingLot.query.all()
@@ -63,6 +67,7 @@ def get_all_lots():
 
 @admin_bp.route('/api/admin/lots/<int:lot_id>', methods=['GET'])
 @admin_required
+@cache.cached()
 def get_lot_details(lot_id):
     """Admin: Get details for a specific lot, including its spots."""
     lot = ParkingLot.query.get_or_404(lot_id)
@@ -125,14 +130,15 @@ def update_parking_lot(lot_id):
             lot.total_spots = new_total_spots
 
         db.session.commit()
+
+        cache.clear()
         return jsonify({"msg": "Parking lot updated successfully", "lot": lot.to_dict()}), 200
 
     except (ValueError, TypeError):
-        db.session.rollback() # Rollback any partial changes on error
+        db.session.rollback()
         return jsonify({"msg": "Invalid input. Total spots and price must be valid positive numbers."}), 400
     except Exception as e:
         db.session.rollback()
-        # In a real app, you would log the error `e`
         return jsonify({"msg": "An unexpected error occurred."}), 500
 
 
@@ -151,6 +157,7 @@ def delete_parking_lot(lot_id):
 
     db.session.delete(lot)
     db.session.commit()
+    cache.clear()
     return jsonify({"msg": "Parking lot deleted successfully"}), 200
 
 @admin_bp.route('/api/admin/users', methods=['GET'])

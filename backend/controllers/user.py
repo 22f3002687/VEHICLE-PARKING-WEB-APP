@@ -5,7 +5,7 @@ from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, verify_j
 import pytz
 from sqlalchemy import func
 from models import *
-
+from controllers import cache
 
 def user_required(fn):
     """Custom decorator to protect routes that require standard user access."""
@@ -23,6 +23,7 @@ user_bp = Blueprint('user', __name__)
 
 @user_bp.route('/api/user/lots', methods=['GET'])
 @jwt_required()
+@cache.cached()
 def get_available_lots():
     """User: Get a list of all parking lots."""
     lots = ParkingLot.query.all()
@@ -71,6 +72,7 @@ def book_spot():
         new_reservations.append(new_reservation)
 
     db.session.commit()
+    cache.clear()
     
     message = f"{number_of_spots} spot{'s' if number_of_spots > 1 else ''} booked successfully!"
     
@@ -96,6 +98,7 @@ def park_vehicle():
     spot.status = 'Occupied'
     reservation.parking_timestamp = datetime.now(pytz.UTC).astimezone(IST)
     db.session.commit()
+    cache.clear()
     return jsonify({"msg": "Vehicle parked successfully.", "reservation": reservation.to_dict()}), 200
 
 @user_bp.route('/api/user/reservations/vacate', methods=['PUT'])
@@ -129,6 +132,7 @@ def vacate_spot():
     reservation.is_active = False
     
     db.session.commit()
+    cache.clear()
     return jsonify({"msg": message, "reservation": reservation.to_dict()}), 200
 
 @user_bp.route('/api/user/analytics', methods=['GET'])

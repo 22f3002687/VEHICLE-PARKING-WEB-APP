@@ -1,17 +1,24 @@
-import datetime
 from flask import Flask
 from flask_jwt_extended import JWTManager
 from models import *
 import os
 from dotenv import load_dotenv
-from controllers import auth_bp, admin_bp, user_bp
+from controllers import auth_bp, admin_bp, user_bp, cache
 from flask_cors import CORS
+
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 
 def create_app():
     app = Flask(__name__)
+    app.config['CACHE_TYPE'] = 'RedisCache'
+    app.config['CACHE_REDIS_HOST'] = 'localhost'
+    app.config['CACHE_REDIS_PORT'] = 6379
+    app.config['CACHE_REDIS_DB'] = 0
+    app.config['CACHE_DEFAULT_TIMEOUT'] = 600  
+
+    cache.init_app(app)
     load_dotenv()
     app.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY')
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'parking.db')
