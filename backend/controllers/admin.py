@@ -1,6 +1,7 @@
 from functools import wraps
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
+from sqlalchemy import func
 from models import *
 
 
@@ -165,3 +166,34 @@ def get_all_reservations():
     """Admin: Get a list of all reservations across all users."""
     reservations = Reservation.query.order_by(Reservation.booking_timestamp.desc()).all()
     return jsonify([r.to_dict() for r in reservations]), 200
+
+@admin_bp.route('/api/admin/analytics', methods=['GET'])
+@admin_required
+def get_admin_analytics():
+    """Admin: Get aggregated analytics data for charts."""
+    # Revenue per lot
+    revenue_per_lot = db.session.query(
+        ParkingLot.location_name,
+        func.sum(Reservation.parking_cost)
+    ).join(ParkingSpot, ParkingSpot.lot_id == ParkingLot.id)\
+     .join(Reservation, Reservation.spot_id == ParkingSpot.id)\
+     .group_by(ParkingLot.location_name).all()
+
+    # Bookings per lot
+    bookings_per_lot = db.session.query(
+        ParkingLot.location_name,
+        func.count(Reservation.id)
+    ).join(ParkingSpot, ParkingSpot.lot_id == ParkingLot.id)\
+     .join(Reservation, Reservation.spot_id == ParkingSpot.id)\
+     .group_by(ParkingLot.location_name).all()
+
+    return jsonify({
+        'revenuePerLot': {
+            'labels': [item[0] for item in revenue_per_lot],
+            'data': [item[1] for item in revenue_per_lot]
+        },
+        'bookingsPerLot': {
+            'labels': [item[0] for item in bookings_per_lot],
+            'data': [item[1] for item in bookings_per_lot]
+        }
+    })

@@ -1,6 +1,5 @@
 /*Purpose: The main dashboard for regular users*/
 
-
 <template>
     <div class="container my-4">
         <div v-if="message" class="alert alert-dismissible fade show" :class="messageType === 'success' ? 'alert-success' : 'alert-danger'">
@@ -8,10 +7,10 @@
             <button type="button" class="btn-close" @click="message = ''"></button>
         </div>
 
-        <!-- Active Reservations -->
+        <!-- Active Reservations (Always visible at the top if they exist) -->
         <div v-if="activeReservations.length > 0">
             <h3>Your Active Bookings</h3>
-            <div class="list-group">
+            <div class="list-group mb-4">
                 <div v-for="r in activeReservations" :key="r.id" class="list-group-item list-group-item-action flex-column align-items-start">
                     <div class="d-flex w-100 justify-content-between">
                         <h5 class="mb-1">Lot: {{ r.lot.location_name }}</h5>
@@ -28,13 +27,27 @@
                     </div>
                 </div>
             </div>
+            <hr>
         </div>
 
-        <!-- Available Lots -->
-         
-        <div>
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+                <a class="nav-link" :class="{ active: currentTab === 'book' }" @click="currentTab = 'book'">Book a Spot</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" :class="{ active: currentTab === 'history' }" @click="currentTab = 'history'">Parking History</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" :class="{ active: currentTab === 'analytics' }" @click="currentTab = 'analytics'">Your Analytics</a>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <!-- Book a Spot Tab -->
+        <div v-if="currentTab === 'book'">
             <h3>Available Parking Lots</h3>
-            <div v-if="loading" class="text-center p-5"><div class="spinner-border"></div></div>
+            <div v-if="loading && lots.length === 0" class="text-center p-5"><div class="spinner-border"></div></div>
             <div v-else-if="lots.length === 0" class="text-center p-4 bg-light rounded"><p>No parking lots available.</p></div>
             <div v-else class="row">
                 <div v-for="lot in lots" :key="lot.id" class="col-md-6 col-lg-4 mb-4">
@@ -54,34 +67,69 @@
                 </div>
             </div>
         </div>
-        
-        <hr class="my-4">
 
-        <!-- Parking History -->
-        <h3>Your Parking History</h3>
-        <div v-if="loading" class="text-center p-5"><div class="spinner-border"></div></div>
-        <div v-else-if="pastReservations.length === 0" class="text-center p-4 bg-light rounded"><p>You have no past parking records.</p></div>
-        <div v-else class="table-responsive">
-            <table class="table table-striped table-hover align-middle">
-                <thead class="table-dark">
-                    <tr><th>Lot Name</th><th>Spot #</th><th>Booked On</th><th>Parked On</th><th>Left On</th><th>Duration</th><th>Cost</th></tr>
-                </thead>
-                <tbody>
-                    <tr v-for="r in pastReservations" :key="r.id">
-                        <td>{{ r.lot.location_name }}</td>
-                        <td>{{ r.spot.spot_number }}</td>
-                        <td>{{ new Date(r.booking_timestamp).toLocaleString() }}</td> 
-                        <td>{{ r.parking_timestamp ? new Date(r.parking_timestamp).toLocaleString() : 'N/A' }}</td>
-                        <td>{{ r.leaving_timestamp ? new Date(r.leaving_timestamp).toLocaleString() : 'N/A' }}</td>
-                        <td>{{ formatDuration(r.parking_timestamp, r.leaving_timestamp) }}</td>
-                        <td>₹{{ r.parking_cost != null ? r.parking_cost.toFixed(2) : '0.00' }}</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Parking History Tab -->
+        <div v-if="currentTab === 'history'">
+            <h3>Your Parking History</h3>
+            <div v-if="loading && pastReservations.length === 0" class="text-center p-5"><div class="spinner-border"></div></div>
+            <div v-else-if="pastReservations.length === 0" class="text-center p-4 bg-light rounded"><p>You have no past parking records.</p></div>
+            <div v-else class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Lot Name</th>
+                            <th>Spot #</th>
+                            <th>Booked On</th>
+                            <th>Parked On</th>
+                            <th>Left On</th>
+                            <th>Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="r in pastReservations" :key="r.id">
+                            <td>{{ r.lot.location_name }}</td>
+                            <td>{{ r.spot.spot_number }}</td>
+                            <td>{{ new Date(r.booking_timestamp).toLocaleString() }}</td>
+                            <td>{{ r.parking_timestamp ? new Date(r.parking_timestamp).toLocaleString() : 'N/A' }}</td>
+                            <td>{{ r.leaving_timestamp ? new Date(r.leaving_timestamp).toLocaleString() : 'N/A' }}</td>
+                            <td>₹{{ r.parking_cost != null ? r.parking_cost.toFixed(2) : '0.00' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div v-if="currentTab === 'analytics'">
+            <h3>Your Analytics</h3>
+            <div v-if="loadingAnalytics" class="text-center p-5"><div class="spinner-border"></div></div>
+            <div v-else-if="userAnalyticsData" class="row mb-4">
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">Your Lot Usage</h5>
+                            <div style="height: 300px">
+                                <BarChart v-if="userAnalyticsData.lotUsage.data.length" :chart-data="lotUsageChartData" />
+                                <p v-else class="text-center text-muted mt-5">No usage data available.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 mb-4">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <h5 class="card-title">Monthly Spending (₹)</h5>
+                            <div style="height: 300px">
+                                <BarChart v-if="userAnalyticsData.spendingPerMonth.data.length" :chart-data="spendingChartData" />
+                                <p v-else class="text-center text-muted mt-5">No spending data available.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
-    <!-- Booking Modal -->
     <BookingModal v-if="showBookingModal" :lot="selectedLot" @close="showBookingModal = false" @book="handleBooking" />
 </template>
 
@@ -89,33 +137,40 @@
 import { ref, onMounted, computed } from 'vue';
 import { apiRequest } from '../services/api.js';
 import BookingModal from '../components/BookingModal.vue';
+import BarChart from '../components/charts/BarChart.vue';
+
 
 const lots = ref([]);
 const reservations = ref([]);
+const userAnalyticsData = ref(null);
 const message = ref('');
 const messageType = ref('');
 const loading = ref(false);
+const loadingAnalytics = ref(false);
 const showBookingModal = ref(false);
 const selectedLot = ref(null);
+const currentTab = ref('book'); // Default tab
 
 const activeReservations = computed(() => reservations.value.filter(r => r.is_active));
 const pastReservations = computed(() => reservations.value.filter(r => !r.is_active));
 
-const formatDuration = (start, end) => {
-    if (!start || !end) {
-        return 'N/A';
-    }
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diffMs = endDate - startDate;
-    if (diffMs < 0) return 'N/A';
+const lotUsageChartData = computed(() => ({
+    labels: userAnalyticsData.value?.lotUsage.labels || [],
+    datasets: [{
+        label: 'Visits',
+        data: userAnalyticsData.value?.lotUsage.data || [],
+        backgroundColor: '#42A5F5',
+    }]
+}));
 
-    const hours = Math.floor(diffMs / 3600000);
-    const minutes = Math.floor((diffMs % 3600000) / 60000);
-    
-    return `${hours}h ${minutes}m`;
-};
-
+const spendingChartData = computed(() => ({
+    labels: userAnalyticsData.value?.spendingPerMonth.labels || [],
+    datasets: [{
+        label: 'Spending (₹)',
+        data: userAnalyticsData.value?.spendingPerMonth.data || [],
+        backgroundColor: '#AB47BC',
+    }]
+}));
 
 const showMessage = (msg, type = 'error') => {
     message.value = msg;
@@ -124,17 +179,21 @@ const showMessage = (msg, type = 'error') => {
 
 const fetchData = async () => {
     loading.value = true;
+    loadingAnalytics.value = true;
     try {
-        const [lotsData, reservationsData] = await Promise.all([
+        const [lotsData, reservationsData, analyticsData] = await Promise.all([
             apiRequest('/user/lots'),
-            apiRequest('/user/reservations')
+            apiRequest('/user/reservations'),
+            apiRequest('/user/analytics')
         ]);
         lots.value = lotsData;
         reservations.value = reservationsData;
+        userAnalyticsData.value = analyticsData;
     } catch (err) {
         showMessage(err.message, 'error');
     } finally {
         loading.value = false;
+        loadingAnalytics.value = false;
     }
 };
 
@@ -167,7 +226,7 @@ const park = async (reservationId) => {
 const vacate = async (reservationId) => {
     try {
         const data = await apiRequest('/user/reservations/vacate', 'PUT', { reservation_id: reservationId });
-        showMessage(`${data.msg}`, 'success');
+        showMessage(data.msg, 'success');
         fetchData();
     } catch (err) {
         showMessage(err.message, 'error');

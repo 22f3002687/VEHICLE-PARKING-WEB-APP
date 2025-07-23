@@ -3,6 +3,7 @@ from functools import wraps
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, verify_jwt_in_request
 import pytz
+from sqlalchemy import func
 from models import *
 
 
@@ -129,3 +130,37 @@ def vacate_spot():
     
     db.session.commit()
     return jsonify({"msg": message, "reservation": reservation.to_dict()}), 200
+
+@user_bp.route('/api/user/analytics', methods=['GET'])
+@jwt_required()
+def get_user_analytics():
+    """User: Get personal analytics data."""
+    user_id = get_jwt_identity()
+
+    # Lot usage frequency
+    lot_usage = db.session.query(
+        ParkingLot.location_name,
+        func.count(Reservation.id)
+    ).join(ParkingSpot, ParkingSpot.lot_id == ParkingLot.id)\
+     .join(Reservation, Reservation.spot_id == ParkingSpot.id)\
+     .filter(Reservation.user_id == user_id)\
+     .group_by(ParkingLot.location_name).all()
+
+    # Spending per month
+    spending_per_month = db.session.query(
+        func.strftime('%Y-%m', Reservation.parking_timestamp),
+        func.sum(Reservation.parking_cost)
+    ).filter(Reservation.user_id == user_id, Reservation.parking_cost.isnot(None))\
+     .group_by(func.strftime('%Y-%m', Reservation.parking_timestamp))\
+     .order_by(func.strftime('%Y-%m', Reservation.parking_timestamp)).all()
+
+    return jsonify({
+        'lotUsage': {
+            'labels': [item[0] for item in lot_usage],
+            'data': [item[1] for item in lot_usage]
+        },
+        'spendingPerMonth': {
+            'labels': [item[0] for item in spending_per_month],
+            'data': [item[1] for item in spending_per_month]
+        }
+    })

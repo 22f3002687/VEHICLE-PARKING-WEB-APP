@@ -23,6 +23,10 @@
         <li class="nav-item">
             <a class="nav-link" :class="{ active: currentTab === 'reservations' }" @click="fetchReservations">Reservations</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" :class="{ active: currentTab === 'analytics' }" @click="fetchAdminAnalytics">Analytics</a>
+        </li>
+
     </ul>
 
     <!-- Lots View -->
@@ -106,6 +110,36 @@
         </div>
     </div>
 
+    <!--Analytics View -->
+    <div v-if="currentTab === 'analytics'">
+        <h3>System Analytics</h3>
+        <div v-if="loading" class="text-center p-5"><div class="spinner-border"></div></div>
+        <div v-else-if="analyticsData" class="row">
+            <div class="col-12 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Revenue per Lot (₹)</h5>
+                        <div style="height: 300px">
+                            <BarChart v-if="analyticsData.revenuePerLot.data.length" :chart-data="revenueChartData" />
+                            <p v-else class="text-center text-muted mt-5">No revenue data available.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Bookings per Lot</h5>
+                        <div style="height: 300px">
+                            <BarChart v-if="analyticsData.bookingsPerLot.data.length" :chart-data="bookingsChartData" />
+                            <p v-else class="text-center text-muted mt-5">No booking data available.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modals -->
     <LotModal v-if="showModal" :lot-data="selectedLot" @close="showModal = false" @save="handleSaveLot" />
     <LotDetailsModal v-if="showDetailsModal" :lot-details="selectedLotDetails" @close="showDetailsModal = false" />
@@ -113,14 +147,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { apiRequest } from '../services/api.js';
 import LotModal from '../components/LotModal.vue';
 import LotDetailsModal from '../components/LotDetailsModal.vue';
+import BarChart from '../components/charts/BarChart.vue';
+
 
 const lots = ref([]);
 const users = ref([]);
 const reservations = ref([]);
+const analyticsData = ref(null);
 const loading = ref(false);
 const currentTab = ref('lots');
 const message = ref('');
@@ -131,6 +168,37 @@ const showModal = ref(false);
 const selectedLot = ref(null);
 const showDetailsModal = ref(false);
 const selectedLotDetails = ref(null);
+
+const revenueChartData = computed(() => ({
+    labels: analyticsData.value?.revenuePerLot.labels || [],
+    datasets: [{
+        label: 'Revenue (₹)',
+        data: analyticsData.value?.revenuePerLot.data || [],
+        backgroundColor: '#42A5F5',
+    }]
+}));
+
+const bookingsChartData = computed(() => ({
+    labels: analyticsData.value?.bookingsPerLot.labels || [],
+    datasets: [{
+        label: 'Bookings',
+        data: analyticsData.value?.bookingsPerLot.data || [],
+        backgroundColor: '#66BB6A',
+    }]
+}));
+
+const fetchAdminAnalytics = async () => {
+    currentTab.value = 'analytics';
+    if (analyticsData.value) return; // Don't refetch if already loaded
+    loading.value = true;
+    try {
+        analyticsData.value = await apiRequest('/admin/analytics');
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        loading.value = false;
+    }
+};
 
 const showMessage = (msg, type = 'error', duration = 4000) => {
     message.value = msg;
