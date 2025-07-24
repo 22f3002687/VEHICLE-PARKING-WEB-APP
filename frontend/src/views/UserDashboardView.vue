@@ -47,8 +47,11 @@
         <!-- Book a Spot Tab -->
         <div v-if="currentTab === 'book'">
             <h3>Available Parking Lots</h3>
-            <div v-if="loading && lots.length === 0" class="text-center p-5"><div class="spinner-border"></div></div>
-            <div v-else-if="lots.length === 0" class="text-center p-4 bg-light rounded"><p>No parking lots available.</p></div>
+            <div class="mb-3">
+                <input type="search" v-model="lotSearchQuery" class="form-control" placeholder="Search by Lot Name or Address...">
+            </div>
+            <div v-if="loading" class="text-center p-5"><div class="spinner-border"></div></div>
+            <div v-else-if="lots.length === 0" class="text-center p-4 bg-light rounded"><p>No parking lots found matching your search.</p></div>
             <div v-else class="row">
                 <div v-for="lot in lots" :key="lot.id" class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100 shadow-sm">
@@ -139,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { apiRequest } from '../services/api.js';
 import BookingModal from '../components/BookingModal.vue';
 import BarChart from '../components/charts/BarChart.vue';
@@ -156,6 +159,8 @@ const showBookingModal = ref(false);
 const selectedLot = ref(null);
 const currentTab = ref('book');
 const exporting = ref(false);
+const lotSearchQuery = ref('');
+let searchTimeout = null; 
 
 const activeReservations = computed(() => reservations.value.filter(r => r.is_active));
 const pastReservations = computed(() => reservations.value.filter(r => !r.is_active));
@@ -184,6 +189,7 @@ const showMessage = (msg, type = 'error') => {
 };
 
 const fetchData = async () => {
+    lotSearchQuery.value = ''; 
     loading.value = true;
     loadingAnalytics.value = true;
     try {
@@ -251,6 +257,29 @@ const exportHistory = async () => {
     }
 };
 
+const searchLots = async (query) => {
+    loading.value = true;
+    try {
+        lots.value = await apiRequest(`/user/lots/search?q=${query}`);
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        loading.value = false;
+    }
+};
+
+
+const debounce = (func, delay) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(func, delay);
+};
+
+
+watch(lotSearchQuery, (newQuery) => {
+    debounce(() => {
+        searchLots(newQuery);
+    }, 300);
+});
 
 onMounted(fetchData);
 </script>

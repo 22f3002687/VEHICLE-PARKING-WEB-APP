@@ -6,7 +6,8 @@ import { auth } from '../services/api.js';
 import LoginView from '../views/LoginView.vue';
 import RegisterView from '../views/RegisterView.vue';
 import AdminDashboardView from '../views/AdminDashboardView.vue';
-import UserDashboardView from '../views/UserDashboardView.vue'; // IMPORTED
+import UserDashboardView from '../views/UserDashboardView.vue'; 
+import ProfileView from '../views/ProfileView.vue';
 
 
 const router = createRouter({
@@ -26,6 +27,12 @@ const router = createRouter({
             name: 'dashboard',
             component: UserDashboardView,
             meta: { requiresAuth: true, role: 'user' }
+        },
+        {
+            path: '/profile',
+            name: 'profile',
+            component: ProfileView,
+            meta: { requiresAuth: true } 
         }
     ]
 });
@@ -39,14 +46,12 @@ router.beforeEach((to, from, next) => {
         if (!isAuthenticated) {
             next({ name: 'login' });
         } else if (to.meta.role && to.meta.role !== userRole) {
-            // If a logged-in user tries to access a page not for their role, send them home.
             next({ name: 'login' }); 
         } else {
             next();
         }
     } else {
         if (isAuthenticated && (to.name === 'login' || to.name === 'register')) {
-            // If logged in, redirect from login/register to their dashboard
             next(userRole === 'admin' ? { name: 'admin' } : { name: 'dashboard' });
         } else {
             next();

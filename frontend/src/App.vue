@@ -12,6 +12,7 @@
                 </div>
                 <div v-if="auth.token" class="d-flex align-items-center">
                     <span class="navbar-text me-3 text-white">Welcome, <strong>{{ auth.username }}</strong> ({{ auth.role }})</span>
+                    <router-link to="/profile" class="btn btn-outline-info me-2">Profile</router-link>
                     <button @click="handleLogout" class="btn btn-outline-warning">Logout</button>
                 </div>
             </div>

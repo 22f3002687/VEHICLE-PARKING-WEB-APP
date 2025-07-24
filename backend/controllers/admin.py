@@ -1,10 +1,12 @@
 from functools import wraps
+import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from sqlalchemy import func
 from ..models import *
 from ..extensions import cache, db
 from ..tasks import announce_new_lot
+from sqlalchemy import text
 
 
 def admin_required(fn):
@@ -207,3 +209,55 @@ def get_admin_analytics():
             'data': [item[1] for item in bookings_per_lot]
         }
     })
+
+
+
+
+
+@admin_bp.route('/api/admin/lots/search', methods=['GET'])
+@admin_required
+def search_lots():
+    """Admin & User: Search parking lots using FTS5."""
+    query = request.args.get('q', '').strip()
+    if not query:
+        return get_all_lots()
+
+    # Sanitize and format query for FTS5 prefix search
+    search_term = ' '.join(f'{word.strip()}*' for word in query.split())
+    
+    # Query FTS table to get rowids, then fetch full objects
+    result = db.session.execute(
+        text("SELECT rowid FROM parking_lot_fts WHERE parking_lot_fts MATCH :query ORDER BY rank"),
+        {'query': search_term}
+    ).fetchall()
+    
+    lot_ids = [row[0] for row in result]
+    if not lot_ids:
+        return jsonify([]), 200
+        
+    matching_lots = ParkingLot.query.filter(ParkingLot.id.in_(lot_ids)).all()
+    # Preserve the order from the FTS search result
+    matching_lots.sort(key=lambda x: lot_ids.index(x.id))
+    return jsonify([lot.to_dict() for lot in matching_lots]), 200
+
+@admin_bp.route('/api/admin/users/search', methods=['GET'])
+@admin_required
+def search_users():
+    """Admin: Search users using FTS5."""
+    query = request.args.get('q', '').strip()
+    if not query:
+        return get_all_users()
+
+    search_term = ' '.join(f'{word.strip()}*' for word in query.split())
+    result = db.session.execute(
+        text("SELECT rowid FROM user_fts WHERE user_fts MATCH :query ORDER BY rank"),
+        {'query': search_term}
+    ).fetchall()
+    
+    user_ids = [row[0] for row in result]
+    if not user_ids:
+        return jsonify([]), 200
+        
+    matching_users = User.query.filter(User.id.in_(user_ids)).all()
+    matching_users.sort(key=lambda x: user_ids.index(x.id))
+    return jsonify([user.to_dict() for user in matching_users]), 200

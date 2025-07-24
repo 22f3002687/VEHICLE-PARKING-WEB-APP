@@ -1,5 +1,6 @@
 from datetime import datetime
 from functools import wraps
+import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, verify_jwt_in_request
 import pytz
@@ -7,6 +8,7 @@ from sqlalchemy import func
 from ..models import *
 from ..extensions import cache, db
 from ..tasks import export_csv_task
+from sqlalchemy import text
 
 def user_required(fn):
     """Custom decorator to protect routes that require standard user access."""
@@ -23,7 +25,7 @@ IST = pytz.timezone("Asia/Kolkata")
 user_bp = Blueprint('user', __name__)
 
 @user_bp.route('/api/user/lots', methods=['GET'])
-@jwt_required()
+@user_required
 @cache.cached()
 def get_available_lots():
     """User: Get a list of all parking lots."""
@@ -31,7 +33,7 @@ def get_available_lots():
     return jsonify([lot.to_dict() for lot in lots]), 200
 
 @user_bp.route('/api/user/reservations', methods=['GET'])
-@jwt_required()
+@user_required
 def get_user_reservations():
     """User: Get their own active and past reservations."""
     user_id = int(get_jwt_identity())
@@ -137,7 +139,7 @@ def vacate_spot():
     return jsonify({"msg": message, "reservation": reservation.to_dict()}), 200
 
 @user_bp.route('/api/user/analytics', methods=['GET'])
-@jwt_required()
+@user_required
 def get_user_analytics():
     """User: Get personal analytics data."""
     user_id = get_jwt_identity()
@@ -172,10 +174,14 @@ def get_user_analytics():
 
 
 @user_bp.route('/api/user/export-csv', methods=['POST'])
-@jwt_required()
+@user_required
 def trigger_export_csv():
     """User: Triggers an async task to generate a CSV export."""
     user_id = int(get_jwt_identity())
+
+    reservation = Reservation.query.filter_by(user_id=user_id, is_active=False).first()
+    if not reservation:
+        return jsonify({"msg": "No past reservations found for CSV export."}), 404
     
     # TRIGGER THE BACKGROUND TASK to generate and email the CSV
     export_csv_task.delay(user_id)
@@ -183,3 +189,31 @@ def trigger_export_csv():
     print(f"Sent CSV export task to Celery for user ID: {user_id}")
     
     return jsonify({"msg": "Your CSV export has started. It will be emailed to you shortly."}), 202
+
+
+def escape_fts_query(query):
+    return re.sub(r'[\W]+', ' ', query) 
+
+@user_bp.route('/api/user/lots/search', methods=['GET'])
+@user_required
+def search_lots_user():
+    """User: Search parking lots using FTS5."""
+    query = request.args.get('q', '').strip()
+    if not query:
+        all_lots = ParkingLot.query.all()
+        return jsonify([lot.to_dict() for lot in all_lots]), 200
+
+    search_term = escape_fts_query(query)
+    
+    result = db.session.execute(
+        text("SELECT rowid FROM parking_lot_fts WHERE parking_lot_fts MATCH :query ORDER BY rank"),
+        {'query': search_term}
+    ).fetchall()
+    
+    lot_ids = [row[0] for row in result]
+    if not lot_ids:
+        return jsonify([]), 200
+        
+    matching_lots = ParkingLot.query.filter(ParkingLot.id.in_(lot_ids)).all()
+    matching_lots.sort(key=lambda x: lot_ids.index(x.id))
+    return jsonify([lot.to_dict() for lot in matching_lots]), 200

@@ -3,7 +3,7 @@ import pytz
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-
+from sqlalchemy import event, DDL, text
 
 IST = pytz.timezone("Asia/Kolkata")
 
@@ -98,3 +98,88 @@ class Reservation(db.Model):
             'lot': self.spot.lot.to_dict() if self.spot and self.spot.lot else None, 
             'user_name' : self.user.username if self.user else None
         }
+    
+
+# --- FTS5 Virtual Table Creation using DDL Events ---
+
+@event.listens_for(db.metadata, 'after_create')
+def create_fts_tables(target, connection, **kw):
+    """Create FTS5 virtual tables after all standard tables are created."""
+    connection.execute(text('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS parking_lot_fts USING fts5(
+            location_name, 
+            address, 
+            pincode, 
+            content='parking_lots', 
+            content_rowid='id'
+        );
+    '''))
+    connection.execute(text('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS user_fts USING fts5(
+            username, 
+            email, 
+            content='users', 
+            content_rowid='id'
+        );
+    '''))
+
+# --- FTS5 Synchronization Triggers using DDL Events ---
+
+@event.listens_for(db.metadata, 'after_create')
+def create_fts_triggers(target, connection, **kw):
+    """Create triggers to keep FTS tables in sync with main tables."""
+    # Triggers for ParkingLot
+    connection.execute(text('''
+        CREATE TRIGGER IF NOT EXISTS parking_lots_after_insert
+        AFTER INSERT ON parking_lots
+        BEGIN
+            INSERT INTO parking_lot_fts(rowid, location_name, address, pincode)
+            VALUES (new.id, new.location_name, new.address, new.pincode);
+        END;
+    '''))
+    connection.execute(text('''
+        CREATE TRIGGER IF NOT EXISTS parking_lots_after_delete
+        AFTER DELETE ON parking_lots
+        BEGIN
+            INSERT INTO parking_lot_fts(parking_lot_fts, rowid, location_name, address, pincode)
+            VALUES ('delete', old.id, old.location_name, old.address, old.pincode);
+        END;
+    '''))
+    connection.execute(text('''
+        CREATE TRIGGER IF NOT EXISTS parking_lots_after_update
+        AFTER UPDATE ON parking_lots
+        BEGIN
+            INSERT INTO parking_lot_fts(parking_lot_fts, rowid, location_name, address, pincode)
+            VALUES ('delete', old.id, old.location_name, old.address, old.pincode);
+            INSERT INTO parking_lot_fts(rowid, location_name, address, pincode)
+            VALUES (new.id, new.location_name, new.address, new.pincode);
+        END;
+    '''))
+
+    # Triggers for User
+    connection.execute(text('''
+        CREATE TRIGGER IF NOT EXISTS users_after_insert
+        AFTER INSERT ON users
+        BEGIN
+            INSERT INTO user_fts(rowid, username, email)
+            VALUES (new.id, new.username, new.email);
+        END;
+    '''))
+    connection.execute(text('''
+        CREATE TRIGGER IF NOT EXISTS users_after_delete
+        AFTER DELETE ON users
+        BEGIN
+            INSERT INTO user_fts(user_fts, rowid, username, email)
+            VALUES ('delete', old.id, old.username, old.email);
+        END;
+    '''))
+    connection.execute(text('''
+        CREATE TRIGGER IF NOT EXISTS users_after_update
+        AFTER UPDATE ON users
+        BEGIN
+            INSERT INTO user_fts(user_fts, rowid, username, email)
+            VALUES ('delete', old.id, old.username, old.email);
+            INSERT INTO user_fts(rowid, username, email)
+            VALUES (new.id, new.username, new.email);
+        END;
+    '''))

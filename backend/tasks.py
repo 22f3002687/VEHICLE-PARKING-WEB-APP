@@ -9,22 +9,15 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from weasyprint import HTML
-
-# Import the celery instance from the extensions module, which is safe
 from .extensions import celery, db
-# Import models directly, which is also safe
-from .models import User, Reservation, ParkingLot
+from .models import User, Reservation
 from datetime import datetime, timedelta
 from .config import GOOGLE_CHAT_WEBHOOK_URL, SENDER_EMAIL, SENDER_APP_PASSWORD, SMTP_SERVER, SMTP_PORT
 from sqlalchemy import func
 
-# --- Helper Functions ---
 
 def send_to_google_chat(webhook_url, message):
     """Sends a message to a Google Chat webhook."""
-    if "YOUR_SPACE_ID" in webhook_url:
-        print("SKIPPING GOOGLE CHAT: Please configure your webhook URL in config.py")
-        return False
     headers = {'Content-Type': 'application/json; charset=UTF-8'}
     payload = json.dumps({'text': message})
     try:
@@ -37,9 +30,6 @@ def send_to_google_chat(webhook_url, message):
 
 def send_email(to_email, subject, html_content, attachment_path=None):
     """Sends an email with optional attachment using credentials from config."""
-    if "your.email@gmail.com" in SENDER_EMAIL or "yoursixteendigitapppassword" in SENDER_APP_PASSWORD:
-        print(f"SKIPPING EMAIL to {to_email}: Please configure email credentials in config.py")
-        return False
     try:
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
@@ -65,13 +55,11 @@ def send_email(to_email, subject, html_content, attachment_path=None):
         print(f"Error sending email to {to_email}: {e}")
         return False
 
-# --- Triggered and Scheduled Tasks ---
-# The `with app.app_context()` is no longer needed because the ContextTask in app.py handles it automatically.
 
 @celery.task
 def announce_new_lot(lot_name, address):
     print(f"--- Announcing New Lot: {lot_name} ---")
-    message = f"📢 *New Parking Lot Available!*\n\n*Name:* {lot_name}\n*Address:* {address}\n\nBook your spot now on Parking Pro!"
+    message = f"📢 *New Parking Lot Available!*\n\n*Name:* {lot_name}\n*Address:* {address}\n\nBook your spot now on Park Vehicle!"
     send_to_google_chat(GOOGLE_CHAT_WEBHOOK_URL, message)
     return "Announcement sent."
 
@@ -87,11 +75,12 @@ def send_daily_reminders():
         send_to_google_chat(GOOGLE_CHAT_WEBHOOK_URL, "✅ Daily reminder job ran successfully. No inactive users found.")
         return "No inactive users."
 
-    email_subject = "A Friendly Reminder from Parking Vehicle"
-    email_html = "<html><body><p>Hi there,</p><p>It's been a while since your last booking. Don't forget to reserve a spot on Parking Pro if you need one!</p><p>Best,<br>The Parking Pro Team</p></body></html>"
+    email_subject = "A Friendly Reminder from Park Vehicle"
+    
     
     sent_count = 0
     for user in inactive_users:
+        email_html = f"""<html><body><p>Hi {user.username},</p><p>It's been a while since your last booking. Don't forget to reserve a spot on Park Vehicle if you need one!</p><p>Best,<br>The Parking Vehicle Team</p></body></html>"""
         if send_email(user.email, email_subject, email_html):
             sent_count += 1
     
@@ -117,7 +106,6 @@ def send_monthly_reports():
         
         lot_counts = {}
         for r in reservations:
-            # FIXED: Correctly access the lot through the spot
             if r.spot and r.spot.lot:
                 lot_counts[r.spot.lot.location_name] = lot_counts.get(r.spot.lot.location_name, 0) + 1
         most_used_lot = max(lot_counts, key=lot_counts.get) if lot_counts else "N/A"
@@ -132,7 +120,7 @@ def send_monthly_reports():
             <li><b>Total Amount Spent:</b> ₹{total_spent:.2f}</li>
             <li><b>Most Used Parking Lot:</b> {most_used_lot}</li>
         </ul>
-        <p>Thank you for using Parking Pro!</p>
+        <p>Thank you for using Park Vehicle!</p>
         </body></html>
         """
         
@@ -140,7 +128,7 @@ def send_monthly_reports():
         pdf_filepath = os.path.join(report_dir, pdf_filename)
         HTML(string=report_html).write_pdf(pdf_filepath)
         
-        email_subject = "Your Parking Pro Monthly Report"
+        email_subject = "Your Park Vehicle Monthly Report"
         send_email(user.email, email_subject, report_html, attachment_path=pdf_filepath)
 
     summary_message = f"✅ Monthly report job finished.\nProcessed and sent reports for {len(users)} users."
@@ -166,12 +154,11 @@ def export_csv_task(user_id):
         writer = csv.writer(csvfile)
         writer.writerow(headers)
         for r in history:
-            # FIXED: Correctly access the lot through the spot relationship
             lot_name = r.spot.lot.location_name if r.spot and r.spot.lot else 'N/A'
             spot_number = r.spot.spot_number if r.spot else 'N/A'
             writer.writerow([lot_name, spot_number, r.booking_timestamp.strftime('%Y-%m-%d %H:%M:%S'), r.parking_timestamp.strftime('%Y-%m-%d %H:%M:%S') if r.parking_timestamp else 'N/A', r.leaving_timestamp.strftime('%Y-%m-%d %H:%M:%S') if r.leaving_timestamp else 'N/A', f"{r.parking_cost:.2f}" if r.parking_cost is not None else '0.00'])
     
-    email_subject = "Your Parking Pro History Export"
+    email_subject = "Your Park Vehicle History Export"
     email_body = f"<html><body><p>Hi {user.username},</p><p>Attached is your parking history export as requested.</p></body></html>"
     send_email(user.email, email_subject, email_body, attachment_path=filepath)
     

@@ -19,7 +19,7 @@ celery.conf.beat_schedule = {
         'schedule': crontab(day_of_month=1, hour=1, minute=0),
     },
     # 'test-every-minute': {
-    #      'task': 'backend.tasks.send_daily_reminders',
+    #      'task': 'backend.tasks.send_monthly_reports',
     #      'schedule': crontab(minute='*'),
     #  },
 

@@ -31,9 +31,12 @@
 
     <!-- Lots View -->
     <div v-if="currentTab === 'lots'">
+        <div class="mb-3">
+            <input type="search" v-model="lotSearchQuery" class="form-control" placeholder="Search for parking lot">
+        </div>
         <div v-if="loading" class="text-center p-5"><div class="spinner-border"></div></div>
         <div v-else-if="lots.length === 0" class="text-center p-5 bg-light rounded">
-            <p>No parking lots found. Click 'Create New Lot' to get started.</p>
+            <p>No parking lots found. Click 'Create New Lot' to get started or clear your search.</p>
         </div>
         <div v-else class="row">
             <div v-for="lot in lots" :key="lot.id" class="col-md-6 col-lg-4 mb-4">
@@ -58,8 +61,11 @@
 
     <!-- Users View -->
     <div v-if="currentTab === 'users'">
+        <div class="mb-3">
+            <input type="search" v-model="userSearchQuery" class="form-control" placeholder="Search by Username or Email...">
+        </div>
         <div v-if="loading" class="text-center p-5"><div class="spinner-border"></div></div>
-        <div v-else-if="users.length === 0" class="text-center p-5 bg-light rounded"><p>No registered users found.</p></div>
+        <div v-else-if="users.length === 0" class="text-center p-5 bg-light rounded"><p>No registered users found or clear your search.</p></div>
         <div v-else class="card shadow-sm"><div class="card-body">
             <h3 class="card-title">Registered Users</h3>
             <table class="table table-striped">
@@ -147,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { apiRequest } from '../services/api.js';
 import LotModal from '../components/LotModal.vue';
 import LotDetailsModal from '../components/LotDetailsModal.vue';
@@ -162,6 +168,9 @@ const loading = ref(false);
 const currentTab = ref('lots');
 const message = ref('');
 const messageType = ref('');
+const lotSearchQuery = ref(''); 
+const userSearchQuery = ref('');
+let searchTimeout = null; 
 
 // Modal state
 const showModal = ref(false);
@@ -281,6 +290,47 @@ const viewLotDetails = async (lotId) => {
         showMessage(err.message, 'error');
     }
 };
+
+const debounce = (func, delay) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(func, delay);
+};
+
+const searchLots = async (query) => {
+    loading.value = true;
+    try {
+        lots.value = await apiRequest(`/admin/lots/search?q=${query}`);
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        loading.value = false;
+    }
+};
+
+const searchUsers = async (query) => {
+    loading.value = true;
+    try {
+        users.value = await apiRequest(`/admin/users/search?q=${query}`);
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        loading.value = false;
+    }
+};
+
+
+watch(lotSearchQuery, (newQuery) => {
+    debounce(() => {
+        searchLots(newQuery);
+    }, 300); // 300ms delay
+});
+
+// NEW: Watcher for user search
+watch(userSearchQuery, (newQuery) => {
+    debounce(() => {
+        searchUsers(newQuery);
+    }, 300);
+});
 
 onMounted(fetchLots);
 </script>
