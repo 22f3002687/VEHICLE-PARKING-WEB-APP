@@ -1,13 +1,9 @@
-from flask_sqlalchemy import SQLAlchemy
+from ..extensions import db
 import pytz
-from sqlalchemy.orm import DeclarativeBase
+
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
-class Base(DeclarativeBase):
-  pass
-
-db = SQLAlchemy(model_class=Base)
 
 IST = pytz.timezone("Asia/Kolkata")
 

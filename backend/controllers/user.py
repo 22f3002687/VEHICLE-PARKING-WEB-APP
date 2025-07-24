@@ -4,8 +4,9 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, verify_jwt_in_request
 import pytz
 from sqlalchemy import func
-from models import *
-from controllers import cache
+from ..models import *
+from ..extensions import cache, db
+from ..tasks import export_csv_task
 
 def user_required(fn):
     """Custom decorator to protect routes that require standard user access."""
@@ -168,3 +169,17 @@ def get_user_analytics():
             'data': [item[1] for item in spending_per_month]
         }
     })
+
+
+@user_bp.route('/api/user/export-csv', methods=['POST'])
+@jwt_required()
+def trigger_export_csv():
+    """User: Triggers an async task to generate a CSV export."""
+    user_id = int(get_jwt_identity())
+    
+    # TRIGGER THE BACKGROUND TASK to generate and email the CSV
+    export_csv_task.delay(user_id)
+    
+    print(f"Sent CSV export task to Celery for user ID: {user_id}")
+    
+    return jsonify({"msg": "Your CSV export has started. It will be emailed to you shortly."}), 202

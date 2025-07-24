@@ -7,3 +7,6 @@ Flask-JWT-Extended
 flask_cors
 Flask-Caching
 redis
+celery[redis]
+WeasyPrint
+requests

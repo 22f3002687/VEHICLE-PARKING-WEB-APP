@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token
-from models import User, db
+from ..models import User
+from ..extensions import db
 
 auth_bp = Blueprint('auth', __name__)
 

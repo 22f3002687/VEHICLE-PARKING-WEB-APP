@@ -71,6 +71,11 @@
         <!-- Parking History Tab -->
         <div v-if="currentTab === 'history'">
             <h3>Your Parking History</h3>
+            <button class="btn btn-outline-secondary" @click="exportHistory" :disabled="exporting">
+                <span v-if="exporting" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                <i v-else class="bi bi-download me-2"></i>
+                Email My History
+            </button>
             <div v-if="loading && pastReservations.length === 0" class="text-center p-5"><div class="spinner-border"></div></div>
             <div v-else-if="pastReservations.length === 0" class="text-center p-4 bg-light rounded"><p>You have no past parking records.</p></div>
             <div v-else class="table-responsive">
@@ -149,7 +154,8 @@ const loading = ref(false);
 const loadingAnalytics = ref(false);
 const showBookingModal = ref(false);
 const selectedLot = ref(null);
-const currentTab = ref('book'); // Default tab
+const currentTab = ref('book');
+const exporting = ref(false);
 
 const activeReservations = computed(() => reservations.value.filter(r => r.is_active));
 const pastReservations = computed(() => reservations.value.filter(r => !r.is_active));
@@ -232,6 +238,19 @@ const vacate = async (reservationId) => {
         showMessage(err.message, 'error');
     }
 };
+
+const exportHistory = async () => {
+    exporting.value = true;
+    try {
+        const data = await apiRequest('/user/export-csv', 'POST');
+        showMessage(data.msg, 'success');
+    } catch (err) {
+        showMessage(err.message, 'error');
+    } finally {
+        exporting.value = false;
+    }
+};
+
 
 onMounted(fetchData);
 </script>

@@ -2,8 +2,9 @@ from functools import wraps
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from sqlalchemy import func
-from models import *
-from flask_caching import Cache
+from ..models import *
+from ..extensions import cache, db
+from ..tasks import announce_new_lot
 
 
 def admin_required(fn):
@@ -19,7 +20,6 @@ def admin_required(fn):
 
 admin_bp = Blueprint('admin',__name__)
 
-cache = Cache()
 
 @admin_bp.route('/api/admin/lots', methods=['POST'])
 @admin_required
@@ -53,6 +53,9 @@ def create_parking_lot():
         db.session.add(new_spot)
 
     db.session.commit()
+
+    # TRIGGER THE BACKGROUND TASK to send a notification
+    announce_new_lot.delay(lot_name=new_lot.location_name, address=new_lot.address)
 
     cache.clear()
     return jsonify({"msg": "Parking lot created successfully", "lot": new_lot.to_dict()}), 201

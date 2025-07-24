@@ -1,9 +1,10 @@
 from flask import Flask
 from flask_jwt_extended import JWTManager
-from models import *
+from .models import *
+from .extensions import db, cache, jwt, celery
 import os
 from dotenv import load_dotenv
-from controllers import auth_bp, admin_bp, user_bp, cache
+from .controllers import auth_bp, admin_bp, user_bp
 from flask_cors import CORS
 
 
@@ -24,9 +25,20 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'parking.db')
     db.init_app(app)
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY')
-    jwt = JWTManager()
     jwt.init_app(app)
     CORS(app)
+
+    app.config['broker_url'] = 'redis://localhost:6379/0'
+    app.config['result_backend'] = 'redis://localhost:6379/0'
+
+    # --- Link Celery to the Flask App ---
+    celery.conf.update(app.config)
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+    celery.Task = ContextTask
+
 
     with app.app_context():
         db.create_all()
