@@ -2,7 +2,7 @@ from datetime import datetime
 from functools import wraps
 import re
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required, verify_jwt_in_request
+from flask_jwt_extended import get_jwt, get_jwt_identity, verify_jwt_in_request
 import pytz
 from sqlalchemy import func
 from ..models import *
@@ -11,7 +11,6 @@ from ..tasks import export_csv_task
 from sqlalchemy import text
 
 def user_required(fn):
-    """Custom decorator to protect routes that require standard user access."""
     @wraps(fn)
     def wrapper(*args, **kwargs):
         verify_jwt_in_request()
@@ -28,14 +27,14 @@ user_bp = Blueprint('user', __name__)
 @user_required
 @cache.cached()
 def get_available_lots():
-    """User: Get a list of all parking lots."""
+    """Get a list of all parking lots."""
     lots = ParkingLot.query.all()
     return jsonify([lot.to_dict() for lot in lots]), 200
 
 @user_bp.route('/api/user/reservations', methods=['GET'])
 @user_required
 def get_user_reservations():
-    """User: Get their own active and past reservations."""
+    """Get their own active and past reservations."""
     user_id = int(get_jwt_identity())
     reservations = Reservation.query.filter_by(user_id=user_id).order_by(Reservation.booking_timestamp.desc()).all()
     return jsonify([r.to_dict() for r in reservations]), 200
@@ -43,7 +42,7 @@ def get_user_reservations():
 @user_bp.route('/api/user/reservations/book', methods=['POST'])
 @user_required
 def book_spot():
-    """User: Book one or more available spots in a given lot."""
+    """Book one or more available spots in a given lot."""
     user_id = int(get_jwt_identity())
     data = request.get_json()
     lot_id = data.get('lot_id')
@@ -59,15 +58,12 @@ def book_spot():
     except (ValueError, TypeError):
         return jsonify({"msg": "Invalid number of spots provided."}), 400
 
-    # Find available spots in the lot
     available_spots = ParkingSpot.query.filter_by(lot_id=int(lot_id), status='Available').order_by(ParkingSpot.spot_number).limit(number_of_spots).all()
 
-    # Check if there are enough spots
     if len(available_spots) < number_of_spots:
         return jsonify({"msg": f"Not enough spots available. Only {len(available_spots)} spots are free."}), 404
 
     new_reservations = []
-    # Book the spots
     for spot in available_spots:
         spot.status = 'Booked'
         new_reservation = Reservation(spot_id=spot.id, user_id=user_id)
@@ -87,7 +83,7 @@ def book_spot():
 @user_bp.route('/api/user/reservations/park', methods=['PUT'])
 @user_required
 def park_vehicle():
-    """User: Confirm that they have parked their vehicle for a specific reservation."""
+    """Confirm that they have parked their vehicle for a specific reservation."""
     user_id = int(get_jwt_identity())
     reservation_id = request.get_json().get('reservation_id')
     if not reservation_id:
@@ -107,6 +103,7 @@ def park_vehicle():
 @user_bp.route('/api/user/reservations/vacate', methods=['PUT'])
 @user_required
 def vacate_spot():
+    """Vacate a parked spot and calculate parking cost."""
     user_id = int(get_jwt_identity())
     reservation_id = request.get_json().get('reservation_id')
     if not reservation_id:
@@ -141,10 +138,9 @@ def vacate_spot():
 @user_bp.route('/api/user/analytics', methods=['GET'])
 @user_required
 def get_user_analytics():
-    """User: Get personal analytics data."""
+    """Get personal analytics data."""
     user_id = get_jwt_identity()
 
-    # Lot usage frequency
     lot_usage = db.session.query(
         ParkingLot.location_name,
         func.count(Reservation.id)
@@ -153,7 +149,6 @@ def get_user_analytics():
      .filter(Reservation.user_id == user_id)\
      .group_by(ParkingLot.location_name).all()
 
-    # Spending per month
     spending_per_month = db.session.query(
         func.strftime('%Y-%m', Reservation.parking_timestamp),
         func.sum(Reservation.parking_cost)
@@ -176,14 +171,13 @@ def get_user_analytics():
 @user_bp.route('/api/user/export-csv', methods=['POST'])
 @user_required
 def trigger_export_csv():
-    """User: Triggers an async task to generate a CSV export."""
+    """Triggers an async task to generate a CSV export."""
     user_id = int(get_jwt_identity())
 
     reservation = Reservation.query.filter_by(user_id=user_id, is_active=False).first()
     if not reservation:
         return jsonify({"msg": "No past reservations found for CSV export."}), 404
     
-    # TRIGGER THE BACKGROUND TASK to generate and email the CSV
     export_csv_task.delay(user_id)
     
     print(f"Sent CSV export task to Celery for user ID: {user_id}")
@@ -191,19 +185,16 @@ def trigger_export_csv():
     return jsonify({"msg": "Your CSV export has started. It will be emailed to you shortly."}), 202
 
 
-def escape_fts_query(query):
-    return re.sub(r'[\W]+', ' ', query) 
-
 @user_bp.route('/api/user/lots/search', methods=['GET'])
 @user_required
 def search_lots_user():
-    """User: Search parking lots using FTS5."""
+    """Search parking lots using"""
     query = request.args.get('q', '').strip()
     if not query:
         all_lots = ParkingLot.query.all()
         return jsonify([lot.to_dict() for lot in all_lots]), 200
 
-    search_term = escape_fts_query(query)
+    search_term = ' '.join(f'{word.strip()}*' for word in query.split())
     
     result = db.session.execute(
         text("SELECT rowid FROM parking_lot_fts WHERE parking_lot_fts MATCH :query ORDER BY rank"),

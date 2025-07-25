@@ -1,6 +1,3 @@
-/*Purpose: Configures all application routes and navigation guards. */
-
-
 import { createRouter, createWebHistory } from 'vue-router';
 import { auth } from '../services/api.js';
 import LoginView from '../views/LoginView.vue';

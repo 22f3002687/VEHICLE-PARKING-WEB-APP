@@ -1,6 +1,3 @@
-/*Purpose: A new modal for booking multiple spots*/
-
-
 <template>
     <div class="modal-backdrop fade show"></div>
     <div class="modal fade show" style="display: block;" tabindex="-1">

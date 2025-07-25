@@ -1,4 +1,3 @@
-/*Purpose: Displays the profile information for the logged-in user*/
 <template>
     <div class="container my-4">
         <div class="row justify-content-center">
@@ -52,7 +51,5 @@ const fetchProfile = async () => {
     }
 };
 
-onMounted(() => {
-    fetchProfile();
-});
+onMounted(fetchProfile);
 </script>

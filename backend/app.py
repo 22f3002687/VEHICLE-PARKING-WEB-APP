@@ -31,7 +31,6 @@ def create_app():
     app.config['broker_url'] = 'redis://localhost:6379/0'
     app.config['result_backend'] = 'redis://localhost:6379/0'
 
-    # --- Link Celery to the Flask App ---
     celery.conf.update(app.config)
     class ContextTask(celery.Task):
         def __call__(self, *args, **kwargs):

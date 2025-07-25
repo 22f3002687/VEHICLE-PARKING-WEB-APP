@@ -1,5 +1,4 @@
 from functools import wraps
-import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from sqlalchemy import func
@@ -26,7 +25,7 @@ admin_bp = Blueprint('admin',__name__)
 @admin_bp.route('/api/admin/lots', methods=['POST'])
 @admin_required
 def create_parking_lot():
-    """Admin: Create a new parking lot and its spots."""
+    """Create a new parking lot and its spots."""
     data = request.get_json()
     location_name = data.get('location_name')
     address = data.get('address')
@@ -49,14 +48,12 @@ def create_parking_lot():
     db.session.add(new_lot)
     db.session.flush()
 
-    # Automatically create parking spots for the new lot
     for i in range(1, total_spots + 1):
         new_spot = ParkingSpot(spot_number=i, lot_id=new_lot.id, status='Available')
         db.session.add(new_spot)
 
     db.session.commit()
 
-    # TRIGGER THE BACKGROUND TASK to send a notification
     announce_new_lot.delay(lot_name=new_lot.location_name, address=new_lot.address)
 
     cache.clear()
@@ -66,7 +63,7 @@ def create_parking_lot():
 @admin_required
 @cache.cached()
 def get_all_lots():
-    """Admin: Get a list of all parking lots."""
+    """Get a list of all parking lots."""
     lots = ParkingLot.query.all()
     return jsonify([lot.to_dict() for lot in lots]), 200
 
@@ -74,7 +71,7 @@ def get_all_lots():
 @admin_required
 @cache.cached()
 def get_lot_details(lot_id):
-    """Admin: Get details for a specific lot, including its spots."""
+    """Get details for a specific lot, including its spots."""
     lot = ParkingLot.query.get_or_404(lot_id)
     spots = ParkingSpot.query.filter_by(lot_id=lot.id).order_by(ParkingSpot.spot_number).all()
     lot_data = lot.to_dict()
@@ -103,7 +100,6 @@ def update_parking_lot(lot_id):
                 raise ValueError("Price must be a positive number.")
             lot.price_per_hour = price
 
-        # Handle updating the number of spots if provided
         if 'total_spots' in data:
             new_total_spots = int(data['total_spots'])
             if new_total_spots < 0:
@@ -112,23 +108,19 @@ def update_parking_lot(lot_id):
             current_spots_count = lot.total_spots
 
             if new_total_spots > current_spots_count:
-                # Increase the number of spots
                 for i in range(current_spots_count + 1, new_total_spots + 1):
                     new_spot = ParkingSpot(spot_number=i, lot_id=lot.id, status='Available')
                     db.session.add(new_spot)
             
             elif new_total_spots < current_spots_count:
-                # Decrease the number of spots
                 spots_to_remove_count = current_spots_count - new_total_spots
                 spots_to_remove = ParkingSpot.query.filter_by(lot_id=lot.id).order_by(ParkingSpot.spot_number.desc()).limit(spots_to_remove_count).all()
 
-                # CRITICAL SAFETY CHECK: Ensure spots to be deleted are not occupied
                 for spot in spots_to_remove:
                     if spot.status == 'Occupied':
-                        db.session.rollback() # Abort the transaction
+                        db.session.rollback()
                         return jsonify({"msg": f"Cannot reduce spot count. Spot number {spot.spot_number} is currently occupied."}), 400
                 
-                # If all checks pass, proceed with deletion
                 for spot in spots_to_remove:
                     db.session.delete(spot)
 
@@ -151,10 +143,9 @@ def update_parking_lot(lot_id):
 @admin_bp.route('/api/admin/lots/<int:lot_id>', methods=['DELETE'])
 @admin_required
 def delete_parking_lot(lot_id):
-    """Admin: Delete a parking lot if all its spots are available."""
+    """Delete a parking lot if all its spots are available."""
     lot = ParkingLot.query.get_or_404(lot_id)
     
-    # Check if any spot in the lot is occupied
     occupied_spots = ParkingSpot.query.filter_by(lot_id=lot.id, status='Occupied').count()
     if occupied_spots > 0:
         return jsonify({"msg": "Cannot delete lot. Some parking spots are occupied."}), 400
@@ -168,14 +159,14 @@ def delete_parking_lot(lot_id):
 @admin_bp.route('/api/admin/users', methods=['GET'])
 @admin_required
 def get_all_users():
-    """Admin: Get a list of all registered users."""
+    """Get a list of all registered users."""
     users = User.query.filter_by(role='user').all()
     return jsonify([user.to_dict() for user in users]), 200
 
 @admin_bp.route('/api/admin/reservations', methods=['GET'])
 @admin_required
 def get_all_reservations():
-    """Admin: Get a list of all reservations across all users."""
+    """Get a list of all reservations across all users."""
     reservations = Reservation.query.order_by(Reservation.booking_timestamp.desc()).all()
     return jsonify([r.to_dict() for r in reservations]), 200
 
@@ -183,15 +174,13 @@ def get_all_reservations():
 @admin_required
 def get_admin_analytics():
     """Admin: Get aggregated analytics data for charts."""
-    # Revenue per lot
     revenue_per_lot = db.session.query(
         ParkingLot.location_name,
         func.sum(Reservation.parking_cost)
     ).join(ParkingSpot, ParkingSpot.lot_id == ParkingLot.id)\
      .join(Reservation, Reservation.spot_id == ParkingSpot.id)\
      .group_by(ParkingLot.location_name).all()
-
-    # Bookings per lot
+    
     bookings_per_lot = db.session.query(
         ParkingLot.location_name,
         func.count(Reservation.id)
@@ -211,21 +200,16 @@ def get_admin_analytics():
     })
 
 
-
-
-
 @admin_bp.route('/api/admin/lots/search', methods=['GET'])
 @admin_required
 def search_lots():
-    """Admin & User: Search parking lots using FTS5."""
+    """Search parking lots using"""
     query = request.args.get('q', '').strip()
     if not query:
         return get_all_lots()
 
-    # Sanitize and format query for FTS5 prefix search
     search_term = ' '.join(f'{word.strip()}*' for word in query.split())
     
-    # Query FTS table to get rowids, then fetch full objects
     result = db.session.execute(
         text("SELECT rowid FROM parking_lot_fts WHERE parking_lot_fts MATCH :query ORDER BY rank"),
         {'query': search_term}
@@ -236,14 +220,13 @@ def search_lots():
         return jsonify([]), 200
         
     matching_lots = ParkingLot.query.filter(ParkingLot.id.in_(lot_ids)).all()
-    # Preserve the order from the FTS search result
     matching_lots.sort(key=lambda x: lot_ids.index(x.id))
     return jsonify([lot.to_dict() for lot in matching_lots]), 200
 
 @admin_bp.route('/api/admin/users/search', methods=['GET'])
 @admin_required
 def search_users():
-    """Admin: Search users using FTS5."""
+    """Search users using"""
     query = request.args.get('q', '').strip()
     if not query:
         return get_all_users()

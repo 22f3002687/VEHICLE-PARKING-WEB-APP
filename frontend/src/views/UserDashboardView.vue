@@ -1,5 +1,3 @@
-/*Purpose: The main dashboard for regular users*/
-
 <template>
     <div class="container my-4">
         <div v-if="message" class="alert alert-dismissible fade show" :class="messageType === 'success' ? 'alert-success' : 'alert-danger'">
@@ -7,7 +5,7 @@
             <button type="button" class="btn-close" @click="message = ''"></button>
         </div>
 
-        <!-- Active Reservations (Always visible at the top if they exist) -->
+        <!-- Active Reservations -->
         <div v-if="activeReservations.length > 0">
             <h3>Your Active Bookings</h3>
             <div class="list-group mb-4">

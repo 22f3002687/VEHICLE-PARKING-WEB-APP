@@ -1,6 +1,3 @@
-/*Purpose: The main application shell with navbar and router.*/
-
-
 <template>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
         <div class="container-fluid">

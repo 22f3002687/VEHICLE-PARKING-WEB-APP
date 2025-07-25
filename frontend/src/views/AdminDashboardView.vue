@@ -1,6 +1,3 @@
-/*Purpose: Main view for all admin functionalities*/
-
-
 <template>
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Admin Dashboard</h1>
@@ -172,7 +169,6 @@ const lotSearchQuery = ref('');
 const userSearchQuery = ref('');
 let searchTimeout = null; 
 
-// Modal state
 const showModal = ref(false);
 const selectedLot = ref(null);
 const showDetailsModal = ref(false);
@@ -198,7 +194,7 @@ const bookingsChartData = computed(() => ({
 
 const fetchAdminAnalytics = async () => {
     currentTab.value = 'analytics';
-    if (analyticsData.value) return; // Don't refetch if already loaded
+    if (analyticsData.value) return;
     loading.value = true;
     try {
         analyticsData.value = await apiRequest('/admin/analytics');
@@ -322,10 +318,9 @@ const searchUsers = async (query) => {
 watch(lotSearchQuery, (newQuery) => {
     debounce(() => {
         searchLots(newQuery);
-    }, 300); // 300ms delay
+    }, 300); 
 });
 
-// NEW: Watcher for user search
 watch(userSearchQuery, (newQuery) => {
     debounce(() => {
         searchUsers(newQuery);

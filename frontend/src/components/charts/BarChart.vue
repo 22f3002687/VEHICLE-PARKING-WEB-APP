@@ -1,4 +1,3 @@
-/*Purpose: A reusable component to render a bar chart.*/
 <template>
   <Bar :data="chartData" :options="chartOptions" />
 </template>

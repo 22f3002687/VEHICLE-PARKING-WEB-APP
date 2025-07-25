@@ -19,9 +19,9 @@ from sqlalchemy import func
 def send_to_google_chat(webhook_url, message):
     """Sends a message to a Google Chat webhook."""
     headers = {'Content-Type': 'application/json; charset=UTF-8'}
-    payload = json.dumps({'text': message})
+    data = json.dumps({'text': message})
     try:
-        requests.post(webhook_url, headers=headers, data=payload, timeout=10)
+        requests.post(webhook_url, headers=headers, data=data, timeout=10)
         print("Successfully sent message to Google Chat.")
         return True
     except requests.exceptions.RequestException as e:
@@ -29,7 +29,7 @@ def send_to_google_chat(webhook_url, message):
         return False
 
 def send_email(to_email, subject, html_content, attachment_path=None):
-    """Sends an email with optional attachment using credentials from config."""
+    """Sends an email with optional attachment"""
     try:
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
@@ -66,7 +66,7 @@ def announce_new_lot(lot_name, address):
 @celery.task
 def send_daily_reminders():
     print("--- Running Daily Reminder Task ---")
-    seven_days_ago = datetime.now() - timedelta(microseconds=1) * 7 * 24 * 60 * 60
+    seven_days_ago = datetime.now() - timedelta(days=7) 
     last_booking_subquery = db.session.query(Reservation.user_id, func.max(Reservation.booking_timestamp).label('last_booking')).group_by(Reservation.user_id).subquery()
     inactive_users = db.session.query(User).outerjoin(last_booking_subquery, User.id == last_booking_subquery.c.user_id).filter((last_booking_subquery.c.last_booking < seven_days_ago) | (last_booking_subquery.c.last_booking == None)).filter(User.role == 'user').all()
 
@@ -80,7 +80,12 @@ def send_daily_reminders():
     
     sent_count = 0
     for user in inactive_users:
-        email_html = f"""<html><body><p>Hi {user.username},</p><p>It's been a while since your last booking. Don't forget to reserve a spot on Park Vehicle if you need one!</p><p>Best,<br>The Parking Vehicle Team</p></body></html>"""
+        email_html = f"""<html>
+        <body>
+        <p>Hi {user.username},</p><p>It's been a while since your last booking. Don't forget to reserve a spot on Park Vehicle if you need one!</p><p>Best,<br>The Parking Vehicle Team
+        </p>
+        </body>
+        </html>"""
         if send_email(user.email, email_subject, email_html):
             sent_count += 1
     
@@ -111,7 +116,16 @@ def send_monthly_reports():
         most_used_lot = max(lot_counts, key=lot_counts.get) if lot_counts else "N/A"
 
         report_html = f"""
-        <html><head><style>body {{ font-family: sans-serif; }} h1 {{ color: #333; }} ul {{ list-style-type: none; padding: 0; }} li {{ background: #f4f4f4; margin: 5px 0; padding: 10px; border-radius: 5px; }}</style></head><body>
+        <html>
+        <head>
+        <style>
+        body {{ font-family: sans-serif; }} 
+        h1 {{ color: #333; }} 
+        ul {{ list-style-type: none; padding: 0; }} 
+        li {{ background: #f4f4f4; margin: 5px 0; padding: 10px; border-radius: 5px; }}
+        </style>
+        </head>
+        <body>
         <h1>Monthly Parking Report for {user.username}</h1>
         <p>Hi {user.username},</p>
         <p>Here is your activity summary for the last 30 days:</p>
@@ -121,7 +135,8 @@ def send_monthly_reports():
             <li><b>Most Used Parking Lot:</b> {most_used_lot}</li>
         </ul>
         <p>Thank you for using Park Vehicle!</p>
-        </body></html>
+        </body>
+        </html>
         """
         
         pdf_filename = f"{user.username}_report_{datetime.now().strftime('%Y_%m')}.pdf"
@@ -159,7 +174,11 @@ def export_csv_task(user_id):
             writer.writerow([lot_name, spot_number, r.booking_timestamp.strftime('%Y-%m-%d %H:%M:%S'), r.parking_timestamp.strftime('%Y-%m-%d %H:%M:%S') if r.parking_timestamp else 'N/A', r.leaving_timestamp.strftime('%Y-%m-%d %H:%M:%S') if r.leaving_timestamp else 'N/A', f"{r.parking_cost:.2f}" if r.parking_cost is not None else '0.00'])
     
     email_subject = "Your Park Vehicle History Export"
-    email_body = f"<html><body><p>Hi {user.username},</p><p>Attached is your parking history export as requested.</p></body></html>"
+    email_body = f"""<html>
+    <body>
+    <p>Hi {user.username},</p><p>Attached is your parking history export as requested.</p>
+    </body>
+    </html>"""
     send_email(user.email, email_subject, email_body, attachment_path=filepath)
     
     completion_message = f"✅ Hi {user.username}, your CSV export is complete and has been sent to your email: {user.email}."

@@ -49,31 +49,14 @@ def login():
 @auth_bp.route('/api/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
-    """
-    Fetches the profile details for the currently logged-in user or admin.
-    """
+    """Fetches the profile details for the currently logged-in user or admin."""
     current_user_id = int(get_jwt_identity())
-    claims = get_jwt()
-    role = claims.get('role')
 
-    if role == 'admin':
-        # Assuming your admin model is named Admin and has a similar structure
-        admin = User.query.get(current_user_id)
-        if not admin:
-            return jsonify({"msg": "Admin not found"}), 404
-        return jsonify({
-            "username": admin.username,
-            "email": admin.email,
-            "role": "admin"
-        }), 200
-    elif role == 'user':
-        user = User.query.get(current_user_id)
-        if not user:
-            return jsonify({"msg": "User not found"}), 404
-        return jsonify({
-            "username": user.username,
-            "email": user.email,
-            "role": "user"
-        }), 200
-    else:
-        return jsonify({"msg": "Invalid role specified in token"}), 400
+    current_user = User.query.get(current_user_id)
+    if not current_user:
+        return jsonify({"msg": "User not found"}), 404
+    
+    return jsonify({
+        "username": current_user.username,
+        "email": current_user.email,
+    }), 200

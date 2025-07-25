@@ -1,14 +1,10 @@
 from backend.app import create_app
 from celery.schedules import crontab
 
-# Create a Flask app instance. This will also configure Celery.
 flask_app = create_app()
 
-# Import the celery instance from the extensions file.
 from backend.extensions import celery
 
-# --- Celery Beat Schedule ---
-# This configuration must be done on the final celery object
 celery.conf.beat_schedule = {
     'send-daily-reminders': {
         'task': 'backend.tasks.send_daily_reminders',

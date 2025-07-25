@@ -1,4 +1,3 @@
-/*Purpose: A reusable modal for creating and editing lots*/
 <template>
     <div class="modal-backdrop fade show"></div>
     <div class="modal fade show" style="display: block;" tabindex="-1">

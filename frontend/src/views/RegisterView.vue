@@ -1,6 +1,3 @@
-/*Purpose: A simple registration page for new users.*/
-
-
 <template>
     <div class="row justify-content-center">
         <div class="col-md-6 col-lg-4">

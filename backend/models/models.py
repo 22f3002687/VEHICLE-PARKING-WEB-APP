@@ -7,7 +7,6 @@ from sqlalchemy import event, DDL, text
 
 IST = pytz.timezone("Asia/Kolkata")
 
-# User Model
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -31,7 +30,6 @@ class User(db.Model):
             'role': self.role
         }
 
-# Parking Lot Model
 class ParkingLot(db.Model):
     __tablename__ = 'parking_lots'
     id = db.Column(db.Integer, primary_key=True)
@@ -55,7 +53,6 @@ class ParkingLot(db.Model):
             'available_spots': available_count
         }
 
-# Parking Spot Model
 class ParkingSpot(db.Model):
     __tablename__ = 'parking_spots'
     id = db.Column(db.Integer, primary_key=True)
@@ -72,7 +69,6 @@ class ParkingSpot(db.Model):
             'status': self.status
         }
 
-# Reservation Model
 class Reservation(db.Model):
     __tablename__ = 'reservations'
     id = db.Column(db.Integer, primary_key=True)
@@ -100,7 +96,6 @@ class Reservation(db.Model):
         }
     
 
-# --- FTS5 Virtual Table Creation using DDL Events ---
 
 @event.listens_for(db.metadata, 'after_create')
 def create_fts_tables(target, connection, **kw):
@@ -123,12 +118,11 @@ def create_fts_tables(target, connection, **kw):
         );
     '''))
 
-# --- FTS5 Synchronization Triggers using DDL Events ---
 
 @event.listens_for(db.metadata, 'after_create')
 def create_fts_triggers(target, connection, **kw):
     """Create triggers to keep FTS tables in sync with main tables."""
-    # Triggers for ParkingLot
+
     connection.execute(text('''
         CREATE TRIGGER IF NOT EXISTS parking_lots_after_insert
         AFTER INSERT ON parking_lots
@@ -156,7 +150,7 @@ def create_fts_triggers(target, connection, **kw):
         END;
     '''))
 
-    # Triggers for User
+    
     connection.execute(text('''
         CREATE TRIGGER IF NOT EXISTS users_after_insert
         AFTER INSERT ON users

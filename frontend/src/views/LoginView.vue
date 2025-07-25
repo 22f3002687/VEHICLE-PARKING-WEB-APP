@@ -1,5 +1,3 @@
-/*Purpose: Login page for both users and admins*/
-
 <template>
     <div class="d-flex align-items-center justify-content-center" style="min-height: 75vh;">
         <div class="row justify-content-center w-100">

@@ -1,6 +1,3 @@
-/*Purpose: A modal to display the status of all spots in a lot*/
-
-
 <template>
     <div class="modal-backdrop fade show"></div>
     <div class="modal fade show" style="display: block;" tabindex="-1">
@@ -46,13 +43,13 @@ defineEmits(['close']);
     text-align: center;
 }
 .spot.Available {
-    background-color: #198754; /* Green */
+    background-color: #198754; 
 }
 .spot.Occupied {
-    background-color: #dc3545; /* Red */
+    background-color: #dc3545; 
 }
 .spot.Booked {
-    background-color: #ffc107; /* Yellow */
+    background-color: #ffc107; 
     color: #000;
 }
 </style>

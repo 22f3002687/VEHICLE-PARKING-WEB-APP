@@ -1,17 +1,13 @@
-  /* Purpose: Centralized service for API communication and auth state. */
-
-  import { ref } from 'vue';
+import { ref } from 'vue';
 
 const API_URL = 'http://127.0.0.1:5000/api';
 
-// Reactive object to hold authentication state
 export const auth = ref({
     token: localStorage.getItem('token') || null,
     role: localStorage.getItem('role') || null,
     username: localStorage.getItem('username') || null,
 });
 
-// Central API request function
 export async function apiRequest(endpoint, method = 'GET', data = null) {
     const headers = { 'Content-Type': 'application/json' };
     if (auth.value.token) {
@@ -44,7 +40,6 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
     }
 }
 
-// Auth helper functions
 export function login(token, role, username) {
     auth.value = { token, role, username };
     localStorage.setItem('token', token);
