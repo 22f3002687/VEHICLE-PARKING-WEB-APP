@@ -1,4 +1,5 @@
 from functools import wraps
+import re
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, verify_jwt_in_request
 from sqlalchemy import func
@@ -199,6 +200,8 @@ def get_admin_analytics():
         }
     })
 
+def escape_fts_query(query):
+    return re.sub(r'[\W]+', ' ', query) 
 
 @admin_bp.route('/api/admin/lots/search', methods=['GET'])
 @admin_required
@@ -208,11 +211,11 @@ def search_lots():
     if not query:
         return get_all_lots()
 
-    search_term = ' '.join(f'{word.strip()}*' for word in query.split())
+    query = escape_fts_query(query) 
     
     result = db.session.execute(
         text("SELECT rowid FROM parking_lot_fts WHERE parking_lot_fts MATCH :query ORDER BY rank"),
-        {'query': search_term}
+        {'query': f'"{query}"*'}
     ).fetchall()
     
     lot_ids = [row[0] for row in result]
@@ -231,10 +234,10 @@ def search_users():
     if not query:
         return get_all_users()
 
-    search_term = ' '.join(f'{word.strip()}*' for word in query.split())
+    query = escape_fts_query(query) 
     result = db.session.execute(
         text("SELECT rowid FROM user_fts WHERE user_fts MATCH :query ORDER BY rank"),
-        {'query': search_term}
+        {'query': f'"{query}"*'}
     ).fetchall()
     
     user_ids = [row[0] for row in result]

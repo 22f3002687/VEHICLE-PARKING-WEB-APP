@@ -184,6 +184,8 @@ def trigger_export_csv():
     
     return jsonify({"msg": "Your CSV export has started. It will be emailed to you shortly."}), 202
 
+def escape_fts_query(query):
+    return re.sub(r'[\W]+', ' ', query) 
 
 @user_bp.route('/api/user/lots/search', methods=['GET'])
 @user_required
@@ -194,11 +196,11 @@ def search_lots_user():
         all_lots = ParkingLot.query.all()
         return jsonify([lot.to_dict() for lot in all_lots]), 200
 
-    search_term = ' '.join(f'{word.strip()}*' for word in query.split())
-    
+    query = escape_fts_query(query) 
+
     result = db.session.execute(
         text("SELECT rowid FROM parking_lot_fts WHERE parking_lot_fts MATCH :query ORDER BY rank"),
-        {'query': search_term}
+        {'query': f'"{query}"*'}
     ).fetchall()
     
     lot_ids = [row[0] for row in result]
