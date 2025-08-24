@@ -3,7 +3,7 @@ GOOGLE_CHAT_WEBHOOK_URL = "https://chat.googleapis.com/v1/spaces/AAQALkMWjbo/mes
 
 
 # --- Email Configuration ---
-SENDER_EMAIL = "123saradag568@gmail.com"
-SENDER_APP_PASSWORD = "zkovinaplqgyxamm"
+SENDER_EMAIL = ""
+SENDER_APP_PASSWORD = ""
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
